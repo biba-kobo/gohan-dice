@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#fbf6ec">
+<meta name="description" content="食材・調理・味をサイコロで決める献立アプリ。振るだけで、きょうのごはんの組み合わせと料理例が出ます。">
+<title>きょうのごはんダイス｜ビバ工房</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link id="font" rel="stylesheet" href="">
+<style>
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--ink); font-family: var(--font); }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  a { color: inherit; }
+  .app { max-width: 480px; margin: 0 auto; position: relative; overflow: hidden; min-height: 100vh; }
+  .inner { padding: 20px 18px 40px; position: relative; }
+  .hidden { display: none !important; }
+
+  /* 共通の部品 */
+  .head { position: relative; }
+  .brand { font-size: 11px; letter-spacing: .2em; color: var(--sub); }
+  h1 { margin: 0; font-weight: var(--h1w, 500); }
+  .gear { position: absolute; right: 0; top: 0; width: 38px; height: 38px; border: none; background: transparent; padding: 6px; z-index: 3; }
+  .gear svg { width: 100%; height: 100%; stroke: var(--ink); }
+  .dice { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .die { position: relative; border: none; text-align: left; padding: 10px 10px 12px; min-height: 104px; transition: transform .08s; }
+  .die:active { transform: scale(.97); }
+  .die .lab { font-size: 11px; letter-spacing: .12em; display: block; }
+  .die .face { display: block; text-align: center; font-size: 21px; line-height: 1.25; margin-top: 10px; }
+  .die .mark { position: absolute; right: 8px; top: 8px; font-size: 10px; }
+  .die.rolling .face { opacity: .4; }
+  .hint { font-size: 11px; color: var(--sub); text-align: center; margin: 8px 0 0; }
+  #roll { display: block; width: 100%; margin: 16px 0 8px; padding: 13px; border: none; font-size: 19px; letter-spacing: .3em; }
+  .tog-row { display: flex; justify-content: center; align-items: center; gap: 8px; font-size: 13px; color: var(--sub); margin-bottom: 14px; }
+  .switch { width: 46px; height: 26px; border-radius: 13px; border: none; background: var(--off); position: relative; padding: 0; }
+  .switch::after { content: ""; position: absolute; left: 3px; top: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: left .15s; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+  .switch.on { background: var(--accent); }
+  .switch.on::after { left: 23px; }
+  .result { padding: 14px 16px; }
+  .kind { font-size: 11px; letter-spacing: .12em; color: var(--accent2); }
+  .flav { font-size: 20px; margin: 2px 0 6px; }
+  .flav small { font-size: 12px; color: var(--sub); margin-left: 6px; }
+  .lead { font-size: 12px; color: var(--sub); }
+  .examples { list-style: none; padding: 0; margin: 4px 0 6px; }
+  .examples li { font-size: 16px; padding: 6px 0 6px 20px; position: relative; }
+  .examples li::before { content: ""; position: absolute; left: 2px; top: 13px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
+  .empty { font-size: 13px; color: var(--sub); padding: 6px 0; }
+  .note { font-size: 12.5px; line-height: 1.7; padding: 8px 10px; margin-top: 8px; background: var(--noteBg); border-radius: var(--r-s, 8px); }
+  .note a { color: var(--accent2); }
+  .row { display: flex; gap: 8px; margin-top: 12px; }
+  .row button { flex: 1; padding: 9px; font-size: 13px; background: transparent; border: 1px solid var(--line); border-radius: var(--r-s, 8px); }
+  .msg { font-size: 12px; text-align: center; min-height: 1.4em; margin-top: 4px; color: var(--accent2); }
+  .links { margin-top: 14px; padding-top: 10px; border-top: 1px dashed var(--line); }
+  .links h2 { font-size: 14px; margin: 10px 0 2px; font-weight: 500; }
+  .links .sub { font-size: 11px; color: var(--sub); margin-bottom: 6px; }
+  .near { display: block; padding: 8px 10px; margin: 6px 0; font-size: 13.5px; text-decoration: none; background: var(--noteBg); border-radius: var(--r-s, 8px); }
+  .near::after { content: " ›"; color: var(--accent2); }
+  .sites { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .sites a { text-align: center; padding: 7px 4px; font-size: 12px; text-decoration: none; border: 1px solid var(--line); border-radius: var(--r-s, 8px); }
+  footer { text-align: center; font-size: 11px; color: var(--sub); margin-top: 26px; line-height: 1.8; }
+
+  /* 設定画面 */
+  .sheet { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 10; display: flex; align-items: flex-end; justify-content: center; }
+  .panel { width: 100%; max-width: 480px; max-height: 88vh; overflow-y: auto; background: var(--bg); border-radius: 20px 20px 0 0; padding: 18px 18px 30px; }
+  .panel h2 { font-size: 17px; margin: 0 0 12px; display: flex; justify-content: space-between; align-items: center; font-weight: 500; }
+  .panel h2 button { border: none; background: transparent; font-size: 22px; padding: 0 4px; }
+  .panel h3 { font-size: 13px; margin: 18px 0 6px; color: var(--sub); font-weight: 500; letter-spacing: .1em; }
+  .themes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .themes button { border: 2px solid transparent; border-radius: 12px; padding: 6px; background: #fff; font-size: 12px; }
+  .themes button.sel { border-color: var(--accent); }
+  .themes .sw { height: 46px; border-radius: 8px; margin-bottom: 4px; }
+  .opt { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 14px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .opt small { display: block; font-size: 11px; color: var(--sub); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chips button { border: 1px solid var(--line); background: #fff; border-radius: 16px; padding: 4px 10px; font-size: 13px; }
+  .chips button.sel { background: var(--accent); border-color: var(--accent); color: #fff; text-decoration: line-through; }
+  .supports { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .support { display: block; text-align: center; text-decoration: none; padding: 10px 6px; border-radius: 12px; font-size: 14px; line-height: 1.4; }
+  .support small { display: block; font-size: 10.5px; opacity: .75; }
+  .support.ofuse { background: #fff; border: 1px solid var(--line); color: var(--ink); }
+  .support.bmc { background: #ffdd00; color: #000; border: 1px solid #000; font-family: "Cookie", cursive, var(--font); }
+  .support.bmc small { font-family: var(--font); }
+  .about { font-size: 11.5px; color: var(--sub); line-height: 1.8; margin-top: 16px; }
+
+  /* ===== K 北欧テキスタイル ===== */
+  body.t-k { --bg: #fbf6ec; --ink: #3b3a36; --sub: #8a857a; --accent: #e07a5f; --accent2: #c25b40; --line: #e6d9bf; --noteBg: #f6eedd; --off: #d9cfbd; --font: "Kiwi Maru", serif; --r-s: 12px; }
+  .t-k .band { height: 112px; background-color: #f2e3c6; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Cg transform='translate(15 15)'%3E%3Ccircle r='5' fill='%23e07a5f'/%3E%3Cg fill='%23e07a5f' opacity='.55'%3E%3Ccircle cx='0' cy='-9' r='5'/%3E%3Ccircle cx='9' cy='0' r='5'/%3E%3Ccircle cx='0' cy='9' r='5'/%3E%3Ccircle cx='-9' cy='0' r='5'/%3E%3C/g%3E%3C/g%3E%3Cg transform='translate(45 45)'%3E%3Ccircle r='4' fill='%233d8c8a'/%3E%3Cg fill='%233d8c8a' opacity='.5'%3E%3Cellipse cx='0' cy='-8' rx='3' ry='5'/%3E%3Cellipse cx='0' cy='8' rx='3' ry='5'/%3E%3Cellipse cx='8' cy='0' rx='5' ry='3'/%3E%3Cellipse cx='-8' cy='0' rx='5' ry='3'/%3E%3C/g%3E%3C/g%3E%3Ccircle cx='45' cy='14' r='3' fill='%23e9b44c'/%3E%3Ccircle cx='14' cy='46' r='3' fill='%23e9b44c'/%3E%3C/svg%3E"); }
+  .t-k .head { margin: -20px -18px 0; }
+  .t-k .badge { position: relative; margin: -40px 18px 18px; background: #fbf6ec; border-radius: 40px; text-align: center; padding: 10px 0 8px; box-shadow: 0 3px 0 rgba(0,0,0,.06); }
+  .t-k h1 { font-size: 22px; }
+  .t-k .gear { right: 10px; top: 10px; background: #fbf6ec; border-radius: 50%; }
+  .t-k .die { color: #fff; border-radius: 16px 16px 16px 4px; }
+  .t-k .die:nth-child(1) { background: #e07a5f; } .t-k .die:nth-child(2) { background: #3d8c8a; }
+  .t-k .die:nth-child(3) { background: #d9a23b; } .t-k .die:nth-child(4) { background: #8a6fa8; }
+  .t-k .die .lab { opacity: .9; }
+  .t-k .die .face { font-size: 22px; }
+  .t-k .die.locked { box-shadow: 0 0 0 3px #fbf6ec, 0 0 0 5px #3b3a36; }
+  .t-k .die .mark::before { content: "✿ 固定中"; }
+  .t-k #roll { border-radius: 30px; background: #3b3a36; color: #fbf6ec; }
+  .t-k .result { background: #fff; border-radius: 18px; border: 2px solid #f2e3c6; }
+  .t-k .examples li::before { background: radial-gradient(circle, #e9b44c 30%, #e07a5f 32%); width: 12px; height: 12px; top: 12px; }
+
+  /* ===== J 大人の線画 ===== */
+  body.t-j { --bg: #f3ede6; --ink: #5a4e48; --sub: #a59288; --accent: #c99d94; --accent2: #a87468; --line: #d6c8bc; --noteBg: #ece4da; --off: #d6c8bc; --font: "Zen Kaku Gothic New", sans-serif; --r-s: 2px; }
+  .t-j .en { font-family: "Cormorant Garamond", serif; font-style: italic; font-size: 14px; color: #b28f86; }
+  .t-j h1 { font-size: 21px; letter-spacing: .14em; margin: 2px 0 14px; line-height: 1.5; }
+  .t-j .pot { position: absolute; right: 40px; top: 0; }
+  .t-j .dice { gap: 0; border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+  .t-j .die { background: transparent; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .t-j .die .lab { font-size: 10px; letter-spacing: .2em; color: var(--sub); }
+  .t-j .die .face { text-align: left; font-size: 20px; letter-spacing: .06em; }
+  .t-j .die.locked { background: #ece4da; }
+  .t-j .die .mark::before { content: "●"; color: #c99d94; font-size: 9px; }
+  .t-j #roll { background: transparent; text-align: left; border-bottom: 1px solid var(--ink); border-radius: 0; padding: 12px 2px; font-size: 17px; display: flex; justify-content: space-between; }
+  .t-j #roll::after { content: "→"; letter-spacing: 0; }
+  .t-j .tog-row { justify-content: flex-end; }
+  .t-j .result { padding: 6px 0; }
+  .t-j .kind { letter-spacing: .25em; }
+  .t-j .flav { letter-spacing: .1em; }
+  .t-j .examples { counter-reset: n; }
+  .t-j .examples li { padding-left: 30px; font-size: 15px; }
+  .t-j .examples li::before { counter-increment: n; content: "0" counter(n); background: none; width: auto; height: auto; top: 8px; font-family: "Cormorant Garamond", serif; font-style: italic; color: #c99d94; font-size: 14px; }
+
+  /* ===== H 水彩ボタニカル ===== */
+  body.t-h { --bg: #fbf8f3; --ink: #4b4540; --sub: #9a8f86; --accent: #8aa088; --accent2: #c48a8a; --line: #ddd0c2; --noteBg: rgba(243,236,226,.8); --off: #d8cfc4; --font: "Shippori Mincho", serif; --h1w: 600; --r-s: 4px; }
+  .t-h .wash { position: absolute; pointer-events: none; z-index: 0; }
+  .t-h .inner > * { position: relative; z-index: 1; }
+  .t-h .en { font-family: "Cormorant Garamond", serif; font-style: italic; font-size: 15px; color: #8aa088; }
+  .t-h h1 { font-size: 24px; letter-spacing: .08em; margin: 0 0 16px; line-height: 1.45; }
+  .t-h .leaf { position: absolute; right: 44px; top: 0; }
+  .t-h .die { background: #fff; border-radius: 4px; overflow: hidden; box-shadow: 0 1px 6px rgba(120,100,80,.10); }
+  .t-h .die::before { content: ""; position: absolute; width: 110px; height: 80px; right: -30px; top: -26px; border-radius: 50%; opacity: .55; filter: blur(2px); }
+  .t-h .die:nth-child(1)::before { background: radial-gradient(closest-side, #e8b4b4, transparent); }
+  .t-h .die:nth-child(2)::before { background: radial-gradient(closest-side, #b7cbe0, transparent); }
+  .t-h .die:nth-child(3)::before { background: radial-gradient(closest-side, #e8d3a6, transparent); }
+  .t-h .die:nth-child(4)::before { background: radial-gradient(closest-side, #bfd4b8, transparent); }
+  .t-h .die .lab { color: var(--sub); position: relative; }
+  .t-h .die .face { position: relative; font-weight: 600; }
+  .t-h .die.locked { box-shadow: 0 0 0 1.5px #8aa088; }
+  .t-h .die .mark { top: auto; bottom: 8px; }
+  .t-h .die .mark::before { content: "固定"; color: #8aa088; border: 1px solid #8aa088; border-radius: 10px; padding: 0 6px; }
+  .t-h #roll { width: auto; margin: 18px 30px 8px; display: block; margin-left: auto; margin-right: auto; min-width: 70%; border: 1px solid #6f8a6c; color: #6f8a6c; border-radius: 30px; background: rgba(255,255,255,.7); letter-spacing: .4em; font-size: 17px; }
+  .t-h .result { background: rgba(255,255,255,.8); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .t-h .examples li::before { content: "❧"; background: none; width: auto; height: auto; top: 5px; color: #8aa088; font-size: 14px; }
+
+  /* 着せ替えごとの飾りの出し分け */
+  .deco { display: none; }
+  .t-k .deco.k, .t-j .deco.j, .t-h .deco.h { display: block; }
+</style>
+</head>
+<body class="t-k">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="water"><feTurbulence type="fractalNoise" baseFrequency=".035" numOctaves="3" seed="4"/><feDisplacementMap in="SourceGraphic" scale="28"/><feGaussianBlur stdDeviation="2.5"/></filter>
+</svg>
+<div class="app">
+  <!-- 水彩のにじみ（H） -->
+  <svg class="deco h wash" style="left:-40px;top:-30px" width="260" height="200" aria-hidden="true"><g filter="url(#water)"><ellipse cx="120" cy="90" rx="110" ry="70" fill="#cfdccb" opacity=".7"/><ellipse cx="180" cy="60" rx="60" ry="45" fill="#f1cfcf" opacity=".6"/></g></svg>
+
+  <div class="inner">
+    <div class="head">
+      <!-- K：花柄の帯 -->
+      <div class="deco k"><div class="band"></div><div class="badge"><div class="brand">ビバ工房</div><h1>きょうのごはんダイス</h1></div></div>
+      <!-- J：線画 -->
+      <div class="deco j">
+        <div class="en">Biba Kobo — No.01</div><h1>きょうの<br>ごはんダイス</h1>
+        <svg class="pot" width="86" height="82" viewBox="0 0 96 92" fill="none" stroke="#7a6a62" stroke-width="1.1" stroke-linecap="round" aria-hidden="true">
+          <path d="M40 22 c -4 -6 4 -9 0 -15"/><path d="M50 24 c -4 -6 4 -9 0 -15"/><path d="M60 22 c -4 -6 4 -9 0 -15"/>
+          <path d="M18 40 h 64"/><path d="M22 40 v 26 c 0 10 8 14 28 14 c 20 0 28 -4 28 -14 v -26"/>
+          <path d="M18 46 h -8"/><path d="M82 46 h 8"/><path d="M38 34 h 24 c 0 -4 -4 -6 -12 -6 c -8 0 -12 2 -12 6z"/>
+          <rect x="62" y="62" width="20" height="20" rx="3" transform="rotate(14 72 72)" fill="#f3ede6"/><circle cx="68" cy="68" r="1.4" fill="#c99d94" stroke="none"/><circle cx="76" cy="76" r="1.4" fill="#c99d94" stroke="none"/><circle cx="72" cy="72" r="1.4" fill="#c99d94" stroke="none"/>
+        </svg>
+      </div>
+      <!-- H：葉の枝 -->
+      <div class="deco h">
+        <div class="en">today's dinner dice</div><h1>きょうの<br>ごはんダイス</h1>
+        <svg class="leaf" width="64" height="74" viewBox="0 0 70 80" aria-hidden="true"><path d="M10 75 C 25 50, 40 30, 60 6" stroke="#7f9a7c" stroke-width="1.4" fill="none"/><g fill="#a9bfa5" stroke="#7f9a7c" stroke-width=".8"><path d="M22 55 c -14 -2 -16 -12 -12 -18 c 6 4 12 10 12 18z"/><path d="M30 44 c 12 -6 20 -2 22 4 c -8 2 -16 2 -22 -4z"/><path d="M38 32 c -12 -4 -12 -14 -8 -19 c 6 5 9 12 8 19z"/><path d="M47 22 c 10 -6 16 -3 18 2 c -7 2 -13 2 -18 -2z"/></g></svg>
+      </div>
+      <button class="gear" id="openSettings" aria-label="設定">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v2.6M12 18.9v2.6M4.6 4.6l1.8 1.8M17.6 17.6l1.8 1.8M2.5 12h2.6M18.9 12h2.6M4.6 19.4l1.8-1.8M17.6 6.4l1.8-1.8"/></svg>
+      </button>
+    </div>
+
+    <div class="dice" id="dice"></div>
+    <p class="hint">サイコロを押すと、その目を固定できます</p>
+    <button id="roll">ふる</button>
+    <div class="tog-row">だしを使う <button class="switch" id="dashiToggle" aria-label="だしを使う"></button></div>
+
+    <div class="result hidden" id="result">
+      <div class="kind" id="kind"></div>
+      <div class="flav" id="flavor"></div>
+      <div class="lead">例えば、こんな料理が作れます</div>
+      <ul class="examples" id="examples"></ul>
+      <div class="note" id="amount"></div>
+      <div class="note" id="dashi"></div>
+      <div class="note" id="tool"></div>
+      <div class="row"><button id="more">ほかの例</button><button id="copy">結果をコピー</button></div>
+      <div class="msg" id="msg"></div>
+      <div class="links">
+        <h2>近いレシピを探す</h2>
+        <div class="sub">調味料メーカー・料理教室・NHK・雑誌・肉と魚の団体など、作り手のはっきりしたサイトだけを探します</div>
+        <div id="near"></div>
+        <h2>出た目に合わせて探す</h2>
+        <div class="sites" id="bydie"></div>
+        <h2>サイトの中で探す</h2>
+        <div class="sub" id="siteword"></div>
+        <div class="sites" id="sites"></div>
+      </div>
+    </div>
+
+    <footer>ビバ工房</footer>
+  </div>
+  <!-- 水彩のにじみ（H・下） -->
+  <svg class="deco h wash" style="right:-50px;bottom:-40px" width="260" height="220" aria-hidden="true"><g filter="url(#water)"><ellipse cx="140" cy="130" rx="110" ry="80" fill="#f3d6d0" opacity=".65"/><ellipse cx="90" cy="160" rx="60" ry="40" fill="#d4e0cf" opacity=".6"/></g></svg>
+</div>
+
+<!-- 設定画面 -->
+<div class="sheet hidden" id="sheet">
+  <div class="panel">
+    <h2>設定 <button id="closeSettings" aria-label="閉じる">×</button></h2>
+    <h3>着せ替え</h3>
+    <div class="themes" id="themes"></div>
+    <h3>料理例</h3>
+    <div class="opt"><div>小さい子ども向け<small>いか・たこなど、噛み切りにくい食材を料理例に出しません</small></div><button class="switch" id="kidToggle" aria-label="小さい子ども向け"></button></div>
+    <h3>使わない食材（押すと料理例から外します）</h3>
+    <div class="chips" id="exclude"></div>
+    <h3>作者を応援する</h3>
+    <div class="supports">
+      <a class="support ofuse" href="https://ofuse.me/bibakobo" target="_blank" rel="noopener">OFUSE で応援する<small>日本語・円で払えます</small></a>
+      <a class="support bmc" href="https://buymeacoffee.com/bibakobo" target="_blank" rel="noopener">☕ Buy me a coffee<small>英語の画面・カード払い</small></a>
+    </div>
+    <div class="about">
+      きょうのごはんダイス　version 1.0<br>
+      作：ビバ工房<br>
+      設定はこのスマホの中にだけ保存されます。どこにも送りません。<br>
+      料理例は組み合わせから自動で作っています。実際の作り方は「近いレシピを探す」からどうぞ。
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== サイコロの面 =====
+const DICE = [
+  { label: "食材", faces: ["魚介", "野菜", "豆腐・大豆", "豚", "鶏", "牛"] },
+  { label: "調理", faces: ["ゆでる・和える", "焼く", "蒸す", "揚げ焼き", "炒める", "煮る・スープ"] },
+  { label: "土台の味", faces: ["醤油", "味噌", "塩", "ケチャップ・ソース", "中華", "カレー粉"] },
+  { label: "足し味", faces: ["砂糖・みりん", "酢・レモン", "にんにく・生姜", "ごま", "乳", "ねぎ塩"] },
+];
+// 中黒は出さず、名詞の切れ目で2行にする
+const faceHTML = (t) => t.split("・").join("<br>");
+
+// 合わない組み合わせ（出たら足し味→土台の順に、固定していない方を振り直す）
+const MISMATCH = ["ケチャップ・ソース|ごま", "ケチャップ・ソース|ねぎ塩", "カレー粉|ねぎ塩"];
+
+// 土台 × 足し味 → [味の名前, 系統]
+const FLAVOR = {
+  "醤油": { "砂糖・みりん": ["甘辛", "甘じょっぱ系"], "酢・レモン": ["ぽん酢", "さっぱり系"], "にんにく・生姜": ["しょうが醤油", "ガツン系"], "ごま": ["ごま醤油", "香ばし系"], "乳": ["バター醤油", "こってり系"], "ねぎ塩": ["ねぎ醤油", "ねぎ香る系"] },
+  "味噌": { "砂糖・みりん": ["甘みそ", "甘じょっぱ系"], "酢・レモン": ["酢みそ", "さっぱり系"], "にんにく・生姜": ["しょうがみそ", "ガツン系"], "ごま": ["ごまみそ", "香ばし系"], "乳": ["みそバター", "こってり系"], "ねぎ塩": ["ねぎみそ", "ねぎ香る系"] },
+  "塩": { "砂糖・みりん": ["塩だれ", "やさしい甘じょっぱ系"], "酢・レモン": ["塩レモン", "さっぱり系"], "にんにく・生姜": ["にんにく塩", "ガツン系"], "ごま": ["ごま塩", "香ばし系"], "乳": ["クリーム", "まろやか系"], "ねぎ塩": ["ねぎ塩", "ねぎ香る系"] },
+  "ケチャップ・ソース": { "砂糖・みりん": ["甘口ケチャップ", "甘口系"], "酢・レモン": ["ケチャップ甘酢", "甘ずっぱ系"], "にんにく・生姜": ["チリ風（辛くない）", "ガツン系"], "ごま": ["ごまソース", "香ばし系"], "乳": ["ケチャップチーズ", "こってり系"], "ねぎ塩": ["ねぎソース", "ねぎ香る系"] },
+  "中華": { "砂糖・みりん": ["オイスター甘辛", "甘じょっぱ系"], "酢・レモン": ["中華甘酢", "甘ずっぱ系"], "にんにく・生姜": ["香味中華", "ガツン系"], "ごま": ["中華ごまだれ", "香ばし系"], "乳": ["中華クリーム", "まろやか系"], "ねぎ塩": ["中華ねぎ塩", "ねぎ香る系"] },
+  "カレー粉": { "砂糖・みりん": ["甘口カレー", "甘口系"], "酢・レモン": ["カレーレモン", "さっぱり系"], "にんにく・生姜": ["スパイスカレー", "ガツン系"], "ごま": ["ごまカレー", "香ばし系"], "乳": ["カレークリーム", "まろやか系"], "ねぎ塩": ["ねぎ塩カレー", "ねぎ香る系"] },
+};
+
+// 食材 × 調理 → 料理の型。"料理名|検索に使う材料名|kid" の形（kid＝小さい子ども向けでは出さない）
+const DISHES = {
+  "魚介": {
+    "ゆでる・和える": ["えびとブロッコリーの{f}和え|えび ブロッコリー", "えびときゅうりの{f}和え|えび きゅうり", "あさりと小松菜の{f}和え|あさり 小松菜", "ほたてとかぶの{f}和え|ほたて", "たこときゅうりの{f}和え|たこ きゅうり|kid", "ゆでいかの{f}和え|いか|kid"],
+    "焼く": ["鮭の{f}焼き|鮭", "さばの{f}焼き|さば", "ぶりの{f}焼き|ぶり", "かじきの{f}ソテー|かじき", "いかの{f}焼き|いか|kid"],
+    "蒸す": ["鮭ときのこの{f}蒸し|鮭 きのこ", "たらとキャベツの{f}蒸し|たら キャベツ", "あさりの{f}蒸し|あさり"],
+    "揚げ焼き": ["えびの{f}揚げ焼き|えび", "かじきの{f}揚げ焼き|かじき", "さばの{f}竜田揚げ|さば 竜田揚げ", "鮭の{f}フライ|鮭"],
+    "炒める": ["えびの{f}炒め|えび", "鮭と野菜の{f}炒め|鮭", "ほたてと青菜の{f}炒め|ほたて", "いかと野菜の{f}炒め|いか|kid", "シーフードミックスの{f}炒め|シーフードミックス|kid"],
+    "煮る・スープ": ["さばの{f}煮|さば", "ぶりと大根の{f}煮|ぶり 大根", "たらと白菜の{f}煮|たら 白菜", "鮭と野菜の{f}スープ|鮭 スープ"],
+  },
+  "野菜": {
+    "ゆでる・和える": ["ほうれん草の{f}和え|ほうれん草", "ブロッコリーの{f}和え|ブロッコリー", "小松菜ともやしの{f}和え|小松菜 もやし", "いんげんの{f}和え|いんげん"],
+    "焼く": ["なすの{f}焼き|なす", "かぼちゃの{f}焼き|かぼちゃ", "厚切りキャベツの{f}焼き|キャベツ", "じゃがいもの{f}焼き|じゃがいも"],
+    "蒸す": ["キャベツとにんじんの{f}蒸し|キャベツ にんじん", "じゃがいもの{f}蒸し|じゃがいも", "蒸し野菜の{f}だれ|蒸し野菜"],
+    "揚げ焼き": ["なすの{f}揚げ焼き|なす", "かぼちゃの{f}揚げ焼き|かぼちゃ", "れんこんの{f}揚げ焼き|れんこん", "ポテトの{f}揚げ焼き|じゃがいも"],
+    "炒める": ["なすとピーマンの{f}炒め|なす ピーマン", "キャベツの{f}炒め|キャベツ", "もやしとにらの{f}炒め|もやし にら", "きのこの{f}炒め|きのこ"],
+    "煮る・スープ": ["大根の{f}煮|大根", "かぼちゃの{f}煮|かぼちゃ", "白菜の{f}煮|白菜", "野菜たっぷり{f}スープ|野菜 スープ"],
+  },
+  "豆腐・大豆": {
+    "ゆでる・和える": ["豆腐と小松菜の{f}和え|豆腐 小松菜", "油揚げとほうれん草の{f}和え|油揚げ ほうれん草", "冷ややっこ（{f}だれ）|冷ややっこ"],
+    "焼く": ["厚揚げの{f}焼き|厚揚げ", "豆腐ステーキ（{f}）|豆腐ステーキ", "油揚げの{f}はさみ焼き|油揚げ はさみ焼き"],
+    "蒸す": ["豆腐と鶏ひき肉の{f}蒸し|豆腐 ひき肉", "高野豆腐の肉詰め{f}蒸し|高野豆腐 肉詰め"],
+    "揚げ焼き": ["揚げだし豆腐（{f}）|揚げだし豆腐", "高野豆腐の{f}唐揚げ|高野豆腐 唐揚げ", "豆腐ナゲット（{f}）|豆腐ナゲット"],
+    "炒める": ["厚揚げと野菜の{f}炒め|厚揚げ", "豆腐と豚こまの{f}炒め|豆腐 豚こま", "豆腐とひき肉の{f}炒め|豆腐 ひき肉"],
+    "煮る・スープ": ["高野豆腐の{f}煮|高野豆腐", "厚揚げと大根の{f}煮|厚揚げ 大根", "豆腐と野菜の{f}スープ|豆腐 スープ"],
+  },
+  "豚": {
+    "ゆでる・和える": ["豚しゃぶの{f}和え|豚しゃぶ", "豚しゃぶサラダ（{f}）|豚しゃぶ サラダ", "ゆで豚の{f}だれ|ゆで豚"],
+    "焼く": ["豚ロースの{f}焼き|豚ロース", "豚こまの{f}焼き（丸めて焼く）|豚こま", "豚バラの野菜巻き{f}焼き|豚バラ 野菜巻き"],
+    "蒸す": ["豚バラと白菜の{f}蒸し|豚バラ 白菜", "豚こまともやしの{f}蒸し|豚こま もやし", "肉だんごの{f}蒸し|肉だんご"],
+    "揚げ焼き": ["豚こまの{f}揚げ焼き|豚こま", "とんかつ（{f}）|とんかつ", "豚こまの{f}唐揚げ|豚こま 唐揚げ"],
+    "炒める": ["豚こまとキャベツの{f}炒め|豚こま キャベツ", "豚肉と小松菜の{f}炒め|豚肉 小松菜", "豚肉となすの{f}炒め|豚肉 なす"],
+    "煮る・スープ": ["豚バラ大根の{f}煮|豚バラ 大根", "豚こまとじゃがいもの{f}煮|豚こま じゃがいも", "豚肉と白菜の{f}スープ|豚肉 白菜 スープ"],
+  },
+  "鶏": {
+    "ゆでる・和える": ["ゆで鶏の{f}和え|ゆで鶏", "ささみときゅうりの{f}和え|ささみ きゅうり", "鶏ハムの{f}だれ|鶏ハム"],
+    "焼く": ["鶏ももの{f}焼き|鶏もも", "手羽元の{f}焼き|手羽元", "つくねの{f}焼き|つくね"],
+    "蒸す": ["蒸し鶏の{f}だれ|蒸し鶏", "鶏むねとキャベツの{f}蒸し|鶏むね キャベツ", "手羽中の{f}蒸し|手羽中"],
+    "揚げ焼き": ["鶏の{f}唐揚げ|鶏 唐揚げ", "ささみの{f}フライ|ささみ", "手羽先の{f}揚げ焼き|手羽先"],
+    "炒める": ["鶏ももとピーマンの{f}炒め|鶏もも ピーマン", "鶏むねとブロッコリーの{f}炒め|鶏むね ブロッコリー", "鶏ひき肉の{f}そぼろ|鶏そぼろ"],
+    "煮る・スープ": ["手羽元の{f}煮|手羽元", "鶏ももとじゃがいもの{f}煮|鶏もも じゃがいも", "鶏だんごの{f}スープ|鶏だんご スープ"],
+  },
+  "牛": {
+    "ゆでる・和える": ["牛しゃぶの{f}和え|牛しゃぶ", "牛しゃぶサラダ（{f}）|牛しゃぶ サラダ"],
+    "焼く": ["牛こまの{f}焼き|牛こま", "ハンバーグ（{f}ソース）|ハンバーグ", "牛こまの{f}焼き肉|牛こま 焼き肉"],
+    "蒸す": ["牛こまともやしの{f}蒸し|牛こま もやし", "牛肉ときのこの{f}蒸し|牛肉 きのこ"],
+    "揚げ焼き": ["牛カツ（{f}）|牛カツ", "メンチカツ（{f}）|メンチカツ", "牛こまの{f}揚げ焼き|牛こま"],
+    "炒める": ["牛こまとピーマンの{f}炒め|牛こま ピーマン", "牛こまと小松菜の{f}炒め|牛こま 小松菜", "牛そぼろ（{f}）|牛そぼろ"],
+    "煮る・スープ": ["牛こまとじゃがいもの{f}煮|牛こま じゃがいも", "牛こまとごぼうの{f}煮|牛こま ごぼう", "牛こまと野菜の{f}スープ|牛肉 スープ"],
+  },
+};
+
+// 味つけの目安（材料 300g あたり）
+const AMOUNT_BASE = {
+  "醤油": "醤油 大さじ1と1/2", "味噌": "味噌 大さじ1と1/2", "塩": "塩 小さじ1/2",
+  "ケチャップ・ソース": "ケチャップ 大さじ3（ソースなら大さじ2）",
+  "中華": "オイスターソース 大さじ1と1/2＋醤油 小さじ1",
+  "カレー粉": "カレー粉 小さじ1＋塩 小さじ1/2",
+};
+const AMOUNT_ADD = {
+  "砂糖・みりん": "砂糖 大さじ1（みりんなら大さじ2）", "酢・レモン": "酢かレモン汁 大さじ1",
+  "にんにく・生姜": "にんにく・生姜チューブ 各2cm", "ごま": "すりごま 大さじ1〜2",
+  "乳": "バター 10g／粉チーズ 大さじ2／牛乳 100ml（煮る・スープのとき）",
+  "ねぎ塩": "ねぎ塩 大さじ1〜2（塩けがあるので土台は2割減らす）",
+};
+const TOOL = {
+  "ゆでる・和える": "鍋でゆでて、合わせた調味料で和える",
+  "焼く": "フライパン／オーブン",
+  "蒸す": "蒸し器／フライパン蒸し／電子レンジ",
+  "揚げ焼き": "フライパンに油1cm",
+  "炒める": "深めのフライパン",
+  "煮る・スープ": "鍋／圧力鍋／電気調理鍋。汁物はとろみをつけると、小さい子がこぼしても広がりにくい",
+};
+
+// ===== だし =====
+const WET = ["煮る・スープ", "蒸す"];
+const DASHI = {
+  "醤油": "ほんだし（顆粒）水400mlに小さじ1", "味噌": "ほんだし（顆粒）水400mlに小さじ1",
+  "塩": "白だし 水400mlに大さじ2（入れるなら土台の塩はなし）",
+  "ケチャップ・ソース": "コンソメ（顆粒）水400mlに小さじ2", "中華": "鶏ガラスープの素 水400mlに小さじ2",
+  "カレー粉": "コンソメ（顆粒）水400mlに小さじ2",
+};
+const DASHI_DRY = {
+  "醤油": "ほんだし（顆粒）小さじ1/2を下味に", "味噌": "ほんだし（顆粒）小さじ1/2を下味に",
+  "塩": "白だし 大さじ1を下味に（入れるなら土台の塩は半分）",
+  "ケチャップ・ソース": "コンソメ（顆粒）小さじ1を下味に", "中華": "鶏ガラスープの素 小さじ1を下味に",
+  "カレー粉": "コンソメ（顆粒）小さじ1を下味に",
+};
+function shortcut(base, add) {
+  if (base === "醤油" && add === "砂糖・みりん") return "めんつゆ（3倍濃縮）大さじ3で、醤油と砂糖の代わりになる";
+  if (base === "醤油") return "めんつゆ（3倍濃縮）大さじ2で、醤油の代わりにしてもよい（少し甘めになる）";
+  return "";
+}
+// だしオンのときの料理例：{i}＝材料、{d}＝だしの呼び名、{f}＝味の名前、{s}＝汁物の名前
+const DASHI_WORD = { "醤油": "だし醤油", "味噌": "だしみそ", "塩": "白だし", "ケチャップ・ソース": "コンソメ", "中華": "鶏ガラ", "カレー粉": "コンソメ" };
+const DASHI_SEARCH = { "醤油": "だし", "味噌": "だし みそ", "塩": "白だし", "ケチャップ・ソース": "コンソメ", "中華": "鶏ガラ", "カレー粉": "コンソメ カレー" };
+const DASHI_NAME = { "醤油": "ほんだし", "味噌": "ほんだし", "塩": "白だし", "ケチャップ・ソース": "コンソメ", "中華": "鶏ガラ", "カレー粉": "コンソメ" };
+const SOUP_NAME = { "醤油": "すまし汁", "味噌": "具だくさんみそ汁", "塩": "白だしスープ", "ケチャップ・ソース": "コンソメスープ", "中華": "中華スープ", "カレー粉": "カレースープ" };
+const DASHI_TPL = {
+  "ゆでる・和える": ["{i}の{d}びたし", "{i}の{d}和え（{f}風味）"],
+  "焼く": ["{i}の{d}焼き", "{i}の焼きびたし（{d}・{f}風味）"],
+  "蒸す": ["{i}の{d}蒸し", "{i}の{d}蒸し（{f}だれ）"],
+  "揚げ焼き": ["{i}の揚げびたし（{d}）", "{i}の{d}揚げ焼き（{f}風味）"],
+  "炒める": ["{i}の{d}炒め", "{i}の{d}炒め（{f}風味）"],
+  "煮る・スープ": ["{i}の{d}煮（{f}風味）", "{i}の{s}"],
+};
+const DASHI_ING = {
+  "魚介": ["鮭", "さば", "たら", "えび", "あさり", "ほたて"],
+  "野菜": ["なす", "キャベツ", "白菜", "大根", "小松菜", "かぼちゃ", "ほうれん草", "じゃがいも"],
+  "豆腐・大豆": ["豆腐", "厚揚げ", "高野豆腐", "油揚げと小松菜"],
+  "豚": ["豚こまとキャベツ", "豚バラと白菜", "豚こまとじゃがいも", "豚ロース"],
+  "鶏": ["鶏もも", "鶏むね", "手羽元", "鶏ももと大根", "ささみ"],
+  "牛": ["牛こま", "牛こまとごぼう", "牛こまとじゃがいも"],
+};
+// 葉物は焼く・揚げ焼きに向かないので、その2つは野菜を絞る
+const DASHI_ING_ROAST = ["なす", "かぼちゃ", "じゃがいも", "れんこん", "大根", "ピーマン"];
+
+// ===== レシピのリンク（作り手のはっきりしたサイトだけ。投稿型は入れない） =====
+// Google は1回の検索に32語までなので、ここは12か所まで
+const SITE_FILTER = "(" + [
+  "kikkoman.co.jp", "park.ajinomoto.co.jp", "orangepage.net", "cookien.com", "sirogohan.com", "kyounoryouri.jp",
+  "bh-recipe.jp", "uchi.tokyo-gas.co.jp", "lettuceclub.net", "jmi.or.jp", "osakana.suisankai.or.jp", "mizkan.co.jp",
+].map((d) => "site:" + d).join(" OR ") + ")";
+const BY_FACE = {
+  "魚介": ["大日本水産会", "osakana.suisankai.or.jp"], "野菜": ["JAグループ", "life.ja-group.jp"],
+  "豆腐・大豆": ["旭松食品", "asahimatsu.co.jp"], "豚": ["食肉の団体", "jmi.or.jp"], "鶏": ["食肉の団体", "jmi.or.jp"], "牛": ["食肉の団体", "jmi.or.jp"],
+  "焼く": ["東京ガス", "uchi.tokyo-gas.co.jp"], "蒸す": ["東京ガス", "uchi.tokyo-gas.co.jp"],
+  "揚げ焼き": ["日清オイリオ", "nisshin-oillio.com"], "炒める": ["日清オイリオ", "nisshin-oillio.com"], "煮る・スープ": ["ベターホーム", "bh-recipe.jp"],
+  "醤油": ["ヤマサ醤油", "yamasa.com"], "味噌": ["マルコメ", "marukome.co.jp"], "ケチャップ・ソース": ["カゴメ", "kagome.co.jp"],
+  "中華": ["創味食品", "somi.co.jp"], "カレー粉": ["ハウス食品", "housefoods.jp"],
+  "砂糖・みりん": ["宝酒造", "takarashuzo.co.jp"], "酢・レモン": ["ミツカン", "mizkan.co.jp"],
+  "にんにく・生姜": ["エスビー食品", "sbfoods.co.jp"], "乳": ["雪印メグミルク", "meg-snow.com"],
+};
+const BY_DASHI = {
+  "醤油": ["だし→ヤマキ", "yamaki.co.jp"], "味噌": ["だし→にんべん", "ninben.co.jp"], "塩": ["白だし→ヤマキ", "yamaki.co.jp"],
+  "ケチャップ・ソース": ["コンソメ→味の素", "ajinomoto.co.jp"], "中華": ["鶏ガラ→創味食品", "somi.co.jp"], "カレー粉": ["コンソメ→味の素", "ajinomoto.co.jp"],
+};
+const SITES = [
+  ["キッコーマン", "https://www.kikkoman.co.jp/homecook/search/select_search.html?kw="],
+  ["味の素パーク", "https://park.ajinomoto.co.jp/recipe/search/?search_word="],
+  ["オレンジページ", "https://www.orangepage.net/recipes/search?q="],
+  ["NHKきょうの料理", "https://www.kyounoryouri.jp/search/recipe?keyword="],
+];
+const HOW_WORD = { "ゆでる・和える": "和え", "焼く": "焼き", "蒸す": "蒸し", "揚げ焼き": "揚げ", "炒める": "炒め", "煮る・スープ": "煮" };
+const BASE_WORD = { "醤油": "しょうゆ", "味噌": "みそ", "塩": "塩", "ケチャップ・ソース": "ケチャップ", "中華": "オイスターソース", "カレー粉": "カレー" };
+
+// ===== 着せ替え =====
+const THEMES = {
+  k: { name: "北欧テキスタイル", font: "Kiwi+Maru:wght@400;500", color: "#fbf6ec", sw: "linear-gradient(90deg,#e07a5f 25%,#3d8c8a 25% 50%,#d9a23b 50% 75%,#8a6fa8 75%)" },
+  j: { name: "大人の線画", font: "Zen+Kaku+Gothic+New:wght@400;500&family=Cormorant+Garamond:ital,wght@1,500", color: "#f3ede6", sw: "linear-gradient(135deg,#f3ede6 50%,#c99d94 50%)" },
+  h: { name: "水彩ボタニカル", font: "Shippori+Mincho:wght@500;600&family=Cormorant+Garamond:ital,wght@1,500", color: "#fbf8f3", sw: "radial-gradient(circle at 30% 40%,#cfdccb,transparent 60%),radial-gradient(circle at 70% 60%,#f1cfcf,transparent 60%),#fbf8f3" },
+};
+// 「使わない食材」で選べるもの
+const EXCLUDABLE = ["えび", "あさり", "ほたて", "さば", "ぶり", "鮭", "たら", "かじき", "なす", "ピーマン", "きのこ", "かぼちゃ", "じゃがいも", "大根", "白菜", "キャベツ", "ほうれん草", "小松菜", "もやし", "にら", "ごぼう", "れんこん", "ブロッコリー", "きゅうり", "厚揚げ", "高野豆腐", "油揚げ"];
+
+// ===== 状態と保存 =====
+const KEY = "gohan-dice-v1";
+const saved = JSON.parse(localStorage.getItem(KEY) || "{}");
+const state = {
+  faces: DICE.map(() => 0), locked: DICE.map(() => false), rolled: false,
+  theme: THEMES[saved.theme] ? saved.theme : "k",
+  dashi: !!saved.dashi, kid: saved.kid !== false, exclude: Array.isArray(saved.exclude) ? saved.exclude : [],
+  kw0: "",
+};
+const save = () => localStorage.setItem(KEY, JSON.stringify({ theme: state.theme, dashi: state.dashi, kid: state.kid, exclude: state.exclude }));
+
+const $ = (id) => document.getElementById(id);
+const rnd = (n) => Math.floor(Math.random() * n);
+const faceOf = (i) => DICE[i].faces[state.faces[i]];
+const googleLink = (q) => "https://www.google.com/search?q=" + encodeURIComponent(q);
+
+// ===== サイコロ =====
+const diceEl = $("dice");
+DICE.forEach((d, i) => {
+  const el = document.createElement("button");
+  el.className = "die";
+  el.innerHTML = `<span class="lab">${d.label}</span><span class="face">？</span><span class="mark hidden"></span>`;
+  el.onclick = () => {
+    if (!state.rolled) return;
+    state.locked[i] = !state.locked[i];
+    el.classList.toggle("locked", state.locked[i]);
+    el.querySelector(".mark").classList.toggle("hidden", !state.locked[i]);
+  };
+  diceEl.appendChild(el);
+});
+function paint() {
+  [...diceEl.children].forEach((el, i) => {
+    el.querySelector(".face").innerHTML = state.rolled ? faceHTML(faceOf(i)) : "？";
+  });
+}
+function fixMismatch() {
+  for (let n = 0; n < 50 && MISMATCH.includes(faceOf(2) + "|" + faceOf(3)); n++) {
+    if (!state.locked[3]) state.faces[3] = rnd(6);
+    else if (!state.locked[2]) state.faces[2] = rnd(6);
+    else break;
+  }
+}
+function roll() {
+  const btn = $("roll");
+  btn.disabled = true;
+  const els = [...diceEl.children];
+  els.forEach((el, i) => { if (!state.locked[i]) el.classList.add("rolling"); });
+  let n = 0;
+  const t = setInterval(() => {
+    state.rolled = true;
+    DICE.forEach((d, i) => { if (!state.locked[i]) state.faces[i] = rnd(6); });
+    if (n + 1 >= 10) fixMismatch();
+    paint();
+    if (++n >= 10) {
+      clearInterval(t);
+      els.forEach((el) => el.classList.remove("rolling"));
+      btn.disabled = false;
+      btn.textContent = "もう一度ふる";
+      showResult();
+    }
+  }, 70);
+}
+
+// ===== 料理例 =====
+function usable(text, kid) {
+  if (state.kid && kid) return false;
+  return !state.exclude.some((w) => text.includes(w));
+}
+function pickTwo(list) {
+  const a = [...list];
+  for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; }
+  return a.slice(0, 2);
+}
+function normalPicks(food, how, fname) {
+  const list = DISHES[food][how].map((s) => s.split("|"))
+    .map(([tpl, kw, kid]) => [tpl.replace("{f}", fname), kw, kid === "kid"])
+    .filter(([name, , kid]) => usable(name, kid));
+  return pickTwo(list).map(([name, kw]) => [name, kw]);
+}
+function dashiPicks(food, how, base, fname) {
+  const roast = food === "野菜" && (how === "焼く" || how === "揚げ焼き");
+  const ings = pickTwo((roast ? DASHI_ING_ROAST : DASHI_ING[food]).filter((i) => usable(i, false)));
+  const f = fname.replace(/（.*?）/g, "");
+  return ings.map((i, n) => {
+    const tpl = DASHI_TPL[how][n];
+    let name = tpl.replace("{f}だれ", f.endsWith("だれ") ? f : f + "だれ").replace("{i}", i)
+      .replace("{d}", DASHI_WORD[base]).replace("{f}", f).replace("{s}", SOUP_NAME[base]);
+    if (how === "煮る・スープ" && n === 0 && base === "中華") name = `${i}の中華うま煮`;
+    return [name, i.replace("と", " ")];
+  });
+}
+function siteButton(parent, label, href) {
+  const a = document.createElement("a");
+  a.target = "_blank"; a.rel = "noopener"; a.href = href; a.textContent = label;
+  parent.appendChild(a);
+}
+
+function showResult() {
+  const [food, how, base, add] = DICE.map((_, i) => faceOf(i));
+  const [fname, kind] = FLAVOR[base][add];
+  $("kind").textContent = kind;
+  $("flavor").innerHTML = `「${fname}」` + (state.dashi ? `<small>＋だし（${DASHI_NAME[base]}）</small>` : "");
+
+  const picked = state.dashi ? dashiPicks(food, how, base, fname) : normalPicks(food, how, fname);
+  const flavorWord = state.dashi ? DASHI_SEARCH[base] : fname.replace(/（.*?）/g, "").replace("チリ風", "チリソース");
+  const ul = $("examples"), near = $("near");
+  ul.innerHTML = ""; near.innerHTML = "";
+  picked.forEach(([name, kw]) => {
+    const li = document.createElement("li");
+    li.textContent = name;
+    ul.appendChild(li);
+    const a = document.createElement("a");
+    a.className = "near"; a.target = "_blank"; a.rel = "noopener";
+    a.href = googleLink(`${kw} ${flavorWord} ${HOW_WORD[how]} レシピ ${SITE_FILTER}`);
+    a.textContent = name;
+    near.appendChild(a);
+  });
+  if (picked.length === 0) {
+    ul.innerHTML = `<li class="empty">使わない食材を外したら、この組み合わせの料理例がなくなりました。食材を振り直してみてください。</li>`;
+  }
+
+  $("amount").textContent = `味つけの目安（材料300gあたり）：${AMOUNT_BASE[base]} ＋ ${AMOUNT_ADD[add]}`;
+  $("tool").textContent = `使う道具：${TOOL[how]}`;
+
+  const kw0 = picked[0] ? picked[0][1] : food;
+  state.kw0 = kw0;
+  renderDashi(how, base, add);
+
+  const bydie = $("bydie");
+  bydie.innerHTML = "";
+  const seen = new Set();
+  [food, how, base, add].forEach((face) => {
+    const site = BY_FACE[face];
+    if (!site || seen.has(site[1])) return;
+    seen.add(site[1]);
+    const more = BY_FACE[how] && site === BY_FACE[how] ? BASE_WORD[base] : HOW_WORD[how];
+    siteButton(bydie, `${face.split("・")[0]}→${site[0]}`, googleLink(`${kw0} ${more} site:${site[1]}`));
+  });
+
+  const word = `${kw0} ${BASE_WORD[base]}`;
+  $("siteword").textContent = `「${word}」で各サイトの中を探します（広めに出ます）`;
+  const sites = $("sites");
+  sites.innerHTML = "";
+  SITES.forEach(([label, url]) => siteButton(sites, label, url + encodeURIComponent(word)));
+
+  $("msg").textContent = "";
+  $("result").classList.remove("hidden");
+}
+
+function renderDashi(how, base, add) {
+  const el = $("dashi");
+  if (!state.dashi) { el.classList.add("hidden"); return; }
+  const wet = WET.includes(how);
+  const sc = shortcut(base, add);
+  const lines = [`だし：${wet ? DASHI[base] : DASHI_DRY[base]}`];
+  if (sc) lines.push(`近道：${sc}`);
+  lines.push("だしにも塩けがあるので、土台は味を見て減らす");
+  const [label, domain] = BY_DASHI[base];
+  lines.push(`<a href="${googleLink(`${state.kw0} ${HOW_WORD[how]} site:${domain}`)}" target="_blank" rel="noopener">${label}で探す ›</a>`);
+  el.innerHTML = lines.join("<br>");
+  el.classList.remove("hidden");
+}
+
+// ===== だしのスイッチ（表に出す。振った後に切り替えたら料理例から出し直す） =====
+const dashiBtn = $("dashiToggle");
+function paintSwitches() {
+  dashiBtn.classList.toggle("on", state.dashi);
+  $("kidToggle").classList.toggle("on", state.kid);
+}
+dashiBtn.onclick = () => { state.dashi = !state.dashi; save(); paintSwitches(); if (state.rolled) showResult(); };
+
+// ===== 着せ替え =====
+function applyTheme() {
+  document.body.className = "t-" + state.theme;
+  const t = THEMES[state.theme];
+  $("font").href = `https://fonts.googleapis.com/css2?family=${t.font}&family=Cookie&display=swap`;
+  document.querySelector('meta[name="theme-color"]').content = t.color;
+  [...$("themes").children].forEach((b) => b.classList.toggle("sel", b.dataset.t === state.theme));
+}
+Object.entries(THEMES).forEach(([key, t]) => {
+  const b = document.createElement("button");
+  b.dataset.t = key;
+  b.innerHTML = `<div class="sw" style="background:${t.sw}"></div>${t.name}`;
+  b.onclick = () => { state.theme = key; save(); applyTheme(); };
+  $("themes").appendChild(b);
+});
+
+// ===== 設定画面 =====
+$("openSettings").onclick = () => $("sheet").classList.remove("hidden");
+$("closeSettings").onclick = () => { $("sheet").classList.add("hidden"); if (state.rolled) showResult(); };
+$("sheet").onclick = (e) => { if (e.target.id === "sheet") $("closeSettings").onclick(); };
+$("kidToggle").onclick = () => { state.kid = !state.kid; save(); paintSwitches(); };
+EXCLUDABLE.forEach((w) => {
+  const b = document.createElement("button");
+  b.textContent = w;
+  b.classList.toggle("sel", state.exclude.includes(w));
+  b.onclick = () => {
+    state.exclude = state.exclude.includes(w) ? state.exclude.filter((x) => x !== w) : [...state.exclude, w];
+    b.classList.toggle("sel", state.exclude.includes(w));
+    save();
+  };
+  $("exclude").appendChild(b);
+});
+
+// ===== その他のボタン =====
+$("roll").onclick = roll;
+$("more").onclick = showResult;
+$("copy").onclick = async () => {
+  const [food, how, base, add] = DICE.map((_, i) => faceOf(i));
+  const dishes = [...document.querySelectorAll("#examples li")].map((li) => li.textContent).join("／");
+  const text = `きょうのごはんダイス：${food}×${how}×${base}×${add}${state.dashi ? `（だし：${DASHI_NAME[base]}）` : ""}\n例えば ${dishes}`;
+  try { await navigator.clipboard.writeText(text); $("msg").textContent = "コピーしました"; }
+  catch { prompt("この文をコピーしてください", text); }
+};
+
+applyTheme();
+paintSwitches();
+</script>
+</body>
+</html>
